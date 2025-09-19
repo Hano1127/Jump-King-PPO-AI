@@ -248,14 +248,14 @@ class PPOAgent:
         
         extrinsic_rewards = self.rewards
         advantages_ext = np.zeros_like(extrinsic_rewards) # 初始化一個跟獎勵形狀一樣的優勢函數陣列
-        last_gae_lam_ext = 0 # 上一步的 GAE 值
+        last_gae_lam = 0 # 上一步的 GAE 值
         full_values_ext = np.vstack([self.values_ext, next_values_ext_bootstrap.reshape(1, -1)])
         full_dones = np.vstack([self.dones, next_dones_bootstrap.reshape(1, -1)])
 
         for step in reversed(range(self.n_steps)): # 從最後一步開始往前計算 GAE
             next_non_terminal = 1.0 - full_dones[step + 1] # 判斷下一步有沒有終止
             delta = extrinsic_rewards[step] + self.gamma * full_values_ext[step + 1] * next_non_terminal - full_values_ext[step] # TD-error
-            advantages_ext[step] = last_gae_lam_ext = delta + self.gamma * self.gae_lambda * next_non_terminal * last_gae_lam_ext # GAE 計算
+            advantages_ext[step] = last_gae_lam = delta + self.gamma * self.gae_lambda * next_non_terminal * last_gae_lam # GAE 計算
 
         returns_ext_np = advantages_ext + self.values_ext # A + V = Q
 
@@ -298,7 +298,7 @@ class PPOAgent:
                 mb_advantages = b_advantages[mb_indices]
                 
                 ratios = torch.exp(new_log_probs - b_old_log_probs[mb_indices]) # 計算新舊機率比
-                surr1 = ratios * mb_advantages # surrogate objective
+                surr1 = ratios * mb_advantages # 未裁剪的目標函數
                 surr2 = torch.clamp(ratios, 1 - self.eps_clip, 1 + self.eps_clip) * mb_advantages # clip
                 actor_loss = -torch.min(surr1, surr2).mean() 
                 
